@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adarsh</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@300;400;600;700&family=DotGothic16&family=Stint+Ultra+Expanded&family=Pontano+Sans&family=Young+Serif&family=Instrument+Sans&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: white;
+    --muted:#b7c7bd;
+    --accent:#7CFFB2;
+    --panel:white;
+    --fs-base:1rem;
+    --scale-ratio:1.2;
+    --heading-font: Garamond, 'Times New Roman', serif;
+    --body-font: Verdana, Helvetica, Arial, sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background:var(--bg);
+    color:#eaf3ec;
+    font-family: var(--body-font);
+    font-size:var(--fs-base);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    overflow-x:hidden;
+    overflow-y:hidden; /* becomes auto once the site is revealed */
+  }
+  body.site-active { overflow-y:auto; }
+
+  a{ color:inherit; }
+
+  canvas { display:block; position:fixed; inset:0; z-index:0; }
+
+  /* ============ INTRO (text sequence + overload + crash) ============ */
+  #introStage {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+  }
+
+  .stage {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    padding: 0 24px;
+  }
+
+  .ml11 {
+    font-weight: 700;
+    font-family: var(--heading-font);
+    font-size: clamp(1.6rem, 6vw, 3.6rem);
+    color: #fff;
+    text-align: center;
+    letter-spacing: -0.02em;
+  }
+  .ml11 .text-wrapper { position: relative; display: inline-block; padding: 0 8px; }
+  .ml11 .line {
+    opacity: 0;
+    position: absolute;
+    top: 0; left: 0;
+    height: 100%;
+    width: 3px;
+    background-color: #7CFFB2;
+    box-shadow: 0 0 12px #7CFFB2;
+    transform-origin: 0 50%;
+  }
+  .ml11 .letter { display: inline-block; line-height: 1em; }
+
+  /* gradient + shimmer for headlines to feel alive */
+  .alive-gradient {
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    display: inline-block;
+    position: relative;
+    background-size: 200% 100%;
+    animation: shimmer 4.5s linear infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 0% 50%; filter: blur(0); }
+    50% { background-position: 100% 50%; filter: blur(0.6px); }
+    100% { background-position: 0% 50%; filter: blur(0); }
+  }
+
+  #crashFlash {
+    position: fixed;
+    inset: 0;
+    background: #d9ffe9;
+    opacity: 0;
+    z-index: 20;
+    pointer-events: none;
+  }
+
+  #glitchText {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #17293a;
+    opacity: 0;
+    z-index: 21;
+    pointer-events: none;
+  }
+
+  /* ============ MAIN SITE (revealed after the crash) ============ */
+  #mainSite {
+    position: relative;
+    z-index: 5;
+    opacity: 0;
+    min-height: 100vh;
+  }
+  #mainSite[hidden] { display: none; }
+
+  .site-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background: linear-gradient(180deg, rgba(23,41,58,0.88), rgba(23,41,58,0.96) 40%, #17293a 85%);
+    pointer-events: none;
+  }
+
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px 6vw;
+    backdrop-filter: blur(6px);
+    background: rgba(23,41,58,0.55);
+    border-bottom: 1px solid rgba(124,255,178,0.14);
+  }
+  .nav-mark {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    font-size: 1.05rem;
+    opacity: 0;
+  }
+  .nav-mark span { color:#7CFFB2; }
+
+  .menu { display:flex; gap: 34px; }
+  .menu a {
+    position: relative;
+    font-family: Helvetica, Verdana, Arial, sans-serif;
+    font-size: 0.78rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: #cfe3d8;
+    opacity: 0;
+    padding-bottom: 6px;
+  }
+  /* the underline draws in on hover, echoing the intro's vertical line-cursor */
+  .menu a::after {
+    content: '';
+    position: absolute;
+    left: 0; bottom: 0;
+    width: 100%;
+    height: 1px;
+    background: #7CFFB2;
+    box-shadow: 0 0 8px #7CFFB2;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform .35s ease;
+  }
+  .menu a:hover::after,
+  .menu a:focus-visible::after { transform: scaleX(1); }
+  .menu a:hover, .menu a:focus-visible { color:#fff; }
+
+  .section { position: relative; padding: 90px 6vw; max-width: 1180px; margin: 0 auto; }
+
+  .eyebrow {
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: #7CFFB2;
+    margin-bottom: 16px;
+  }
+
+  /* ---- hero / about ---- */
+  .hero-panel {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 52px;
+    align-items: center;
+    padding-top: 70px;
+  }
+  .hero-photo-wrap {
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    opacity: 0;
+    padding: 1px;
+    background: color-mix(in srgb, #7CFFB2 60%, transparent);
+  }
+  .hero-photo {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+    border: 1px solid #17293a;
+  }
+  .hero-copy h1 {
+    font-family: var(--heading-font);
+    font-size: clamp(2rem, 5vw, 3.6rem);
+    line-height: 1.05;
+    margin-bottom: 18px;
+    will-change: transform, opacity;
+  }
+  .hero-copy h1 .name-alive { display:inline-block; transform-origin: center; color: #fff;}
+  
+  .hero-copy .lead {
+    color: #b7c7bd;
+    line-height: 1.7;
+    max-width: 56ch;
+    font-size: 1.02rem;
+    transition: color .3s ease, transform .35s ease;
+  }
+  .fillnote {
+    display: inline-block;
+    margin-top: 22px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #6a7c72;
+    border: 1px dashed rgba(124,255,178,0.35);
+    padding: 6px 12px;
+    border-radius: 4px;
+  }
+
+  /* ---- projects ---- */
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 22px;
+  }
+  .project-slot {
+    border: 1px dashed rgba(124,255,178,0.3);
+    border-radius: 10px;
+    padding: 26px;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: border-color .25s ease, transform .25s ease, background .25s ease;
+  }
+  .project-slot:hover {
+    border-color: #7CFFB2;
+    border-style: solid;
+    transform: translateY(-3px);
+    background: rgba(124,255,178,0.04);
+  }
+  .project-slot h3 { font-size: 1.1rem; margin-bottom: 8px; color: #fff; }
+  .project-slot h3.alive { font-family: 'Fraunces', serif; letter-spacing: -0.01em; }
+  .project-slot p { color: #8fa298; font-size: 0.92rem; line-height: 1.55; }
+  .project-slot .tag {
+    align-self: flex-start;
+    margin-top: 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    color: #6a7c72;
+  }
+
+  /* ---- contact ---- */
+  .contact-links {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    margin-top: 24px;
+  }
+  .contact-links a {
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    text-decoration: none;
+    padding: 12px 18px;
+    border: 1px solid rgba(124,255,178,0.3);
+    border-radius: 999px;
+    color: #cfe3d8;
+    transition: color .25s ease, border-color .25s ease, transform .25s ease;
+  }
+  .contact-links a:hover {
+    color: #7CFFB2; border-color: #7CFFB2; transform: translateY(-2px);
+  }
+
+  footer {
+    padding: 30px 6vw 50px;
+    max-width: 1180px;
+    margin: 0 auto;
+    font-family: Verdana, Helvetica, Arial, sans-serif;
+    font-size: 0.7rem;
+    color: #5c6d63;
+    border-top: 1px solid rgba(124,255,178,0.1);
+  }
+
+  @media (max-width: 720px) {
+    .hero-panel { grid-template-columns: 1fr; text-align: center; justify-items: center; }
+    .menu { gap: 20px; }
+  }
+  /* ---------- font pairing classes ---------- */
+  .font-spacemono-jakarta { --heading-font: 'Space Mono', monospace; --body-font: 'Plus Jakarta Sans', sans-serif; }
+  .font-dotgothic-space { --heading-font: 'DotGothic16', cursive; --body-font: 'Space Mono', monospace; }
+  .font-stint-pontano { --heading-font: 'Stint Ultra Expanded', cursive; --body-font: 'Pontano Sans', sans-serif; }
+  .font-young-instrument { --heading-font: 'Young Serif', serif; --body-font: 'Instrument Sans', sans-serif; }
+</style>
+</head>
+<body>
+
+<canvas></canvas>
+
+<!-- ============ INTRO ============ -->
+<div id="introStage">
+  <div class="stage">
+    <h1 class="ml11">
+      <span class="text-wrapper">
+        <span class="line"></span>
+        <span class="letters"></span>
+      </span>
+    </h1>
+  </div>
+</div>
+<div id="crashFlash"></div>
+<!-- <p id="glitchText">Signal lost — recalibrating</p> -->
+
+<!-- ============ MAIN SITE (hidden until the crash resolves) ============ -->
+<div class="site-veil"></div>
+<div id="mainSite" hidden>
+  <header class="nav">
+    <div class="nav-mark">adarsh<span>.</span></div>
+    <nav class="menu">
+      <a href="#about">About</a>
+      <a href="#projects">Projects</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <section class="section hero-panel" id="about">
+    <div class="hero-photo-wrap">
+      <img class="hero-photo" src="/Users/adarshraj/Downloads/prof.png" alt="Adarsh">
+    </div>
+    <div class="hero-copy">
+      <!-- <p class="eyebrow">Signal acquired</p> -->
+      <h1><span class="name-alive alive-gradient">Adarsh Raj K.</span></h1>
+      <p class="lead">Since childhood, I've held a deep interest in Physics, Computer Science, and philosophy. However, my true passion has always been Computer Science. It is the only thing I truly care about. The idea of combining Computer Science, Physics, and Engineering excites me, inspiring me to learn and create innovative and valuable things. Yes! I aim to develop immensely useful things.</p>
+      <!-- <span class="fillnote">[In search outside of google...]</span> -->
+    </div>
+  </section>
+
+  <section class="section" id="projects">
+    <p class="eyebrow">Selected work</p>
+    <div class="project-grid">
+      Will Document is later, for now you can check my GitHub and LinkedIn for my work. I will update this section soon.
+      <!-- <article class="project-slot">
+        <div>
+          <h3>[Project name]</h3>
+          <p>[One or two lines on what it is and what you actually did on it.]</p>
+        </div>
+        <span class="tag">[link / year]</span>
+      </article>
+      <article class="project-slot">
+        <div>
+          <h3>[Project name]</h3>
+          <p>[One or two lines on what it is and what you actually did on it.]</p>
+        </div>
+        <span class="tag">[link / year]</span>
+      </article>
+      <article class="project-slot">
+        <div>
+          <h3>[Project name]</h3>
+          <p>[One or two lines on what it is and what you actually did on it.]</p>
+        </div>
+        <span class="tag">[link / year]</span>
+      </article> -->
+    </div>
+  </section>
+
+  <section class="section" id="contact">
+    <p class="eyebrow">Get in touch</p>
+    <p class="lead">Blessings, Curse and Suggestions from you. Anything would be greatly appreciated.</p>
+    <p class="lead">In meantime, you can check my social profiles below.</p>
+    <div class="contact-links">
+      <a href="mailto:adarshrajk.dev@gmail.com">Email</a>
+      <a target="_blank" href="https://www.linkedin.com/in/adarshrajk/">LinkedIn</a>
+      <a target="_blank" href="https://github.com/gajzzs">GitHub</a>
+    </div>
+  </section>
+  <footer>© 2026 Adarsh.</footer>
+
+  
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/2.0.2/anime.min.js"></script>
+<!-- Font pairing selector (quick preview) -->
+<div id="fontSwitcher" style="position:fixed;right:18px;bottom:18px;z-index:1000;background:rgba(0,0,0,0.45);padding:10px;border-radius:8px;color:#fff;font-family:var(--body-font);font-size:13px;"> 
+  <label for="fp" style="display:block;margin-bottom:6px;font-weight:600;">Font pair</label>
+  <select id="fp" style="background:transparent;color:inherit;border:1px solid rgba(255,255,255,0.08);padding:6px 8px;border-radius:6px;">
+    <option value="">Current</option>
+    <option value="font-spacemono-jakarta">Space Mono + Plus Jakarta Sans</option>
+    <option value="font-dotgothic-space">DotGothic16 + Space Mono</option>
+    <option value="font-stint-pontano">Stint Ultra Expanded + Pontano Sans</option>
+    <option value="font-young-instrument">Young Serif + Instrument Sans</option>
+  </select>
+</div>
+<script>
+// font switcher: applies a class to <html> and persists choice
+(function(){
+  var select = document.getElementById('fp');
+  var key = 'siteFontPair';
+  function applyClass(cls){
+    document.documentElement.classList.remove('font-playfair','font-spacegrotesk','font-montserrat','font-syne','font-spacemono-jakarta','font-dotgothic-space','font-stint-pontano','font-young-instrument');
+    if(cls) document.documentElement.classList.add(cls);
+  }
+  var saved = localStorage.getItem(key);
+  if(saved) { applyClass(saved); select.value = saved; }
+  select.addEventListener('change', function(){
+    var val = select.value;
+    if(!val) { localStorage.removeItem(key); applyClass(null); return; }
+    localStorage.setItem(key, val);
+    applyClass(val);
+  });
+})();
+
+/* ---------------- background: perspective particle wave ---------------- */
+var canvas = document.querySelector('canvas'),
+    ctx = canvas.getContext('2d'),
+    W = canvas.width = window.innerWidth,
+    H = canvas.height = window.innerHeight,
+    pixels = [];
+
+var waveState = { amp: 10, blue: 80 };
+
+window.addEventListener('resize', function () {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+});
+
+for (var x = -400; x < 400; x += 5) {
+  for (var z = -250; z < 250; z += 5) {
+    pixels.push({ x: x, y: 100, z: z });
+  }
+}
+
+function render(ts) {
+  var imageData = ctx.getImageData(0, 0, W, H),
+      len = pixels.length,
+      fov = 250,
+      pixel, scale, x2d, y2d, c;
+
+  for (var i = 0; i < len; i++) {
+    pixel = pixels[i];
+    scale = fov / (fov + pixel.z);
+    x2d = pixel.x * scale + W / 2;
+    y2d = pixel.y * scale + H / 2;
+
+    if (x2d >= 0 && x2d <= W && y2d >= 0 && y2d <= H) {
+      c = (Math.round(y2d) * imageData.width + Math.round(x2d)) * 4;
+      imageData.data[c] = 0;
+      imageData.data[c + 1] = 255;
+      imageData.data[c + 2] = waveState.blue;
+      imageData.data[c + 3] = 255;
+    }
+
+    pixel.z -= 0.4;
+    pixel.y = H / 14 + Math.sin(i / len * 15 + (ts / 450)) * waveState.amp;
+    if (pixel.z < -fov) pixel.z += 2 * fov;
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+(function drawFrame(ts) {
+  requestAnimationFrame(drawFrame);
+  ctx.fillStyle = '#17293a';
+  ctx.fillRect(0, 0, W, H);
+  render(ts || 0);
+}());
+
+/* ---------------- sequential letter reveal ---------------- */
+var phrases = [
+  "a student",
+  "a geek",
+  "a builder of small things",
+  "still figuring it out",
+  "This is Adarsh"
+];
+
+var letterEl = document.querySelector('.ml11 .letters');
+var lineEl = document.querySelector('.ml11 .line');
+
+function setPhrase(text) {
+  letterEl.innerHTML = text.replace(/([^\x00-\x80]|\w)/g, "<span class='letter'>$&</span>");
+}
+
+function runPhrase(index) {
+  var text = phrases[index % phrases.length];
+  setPhrase(text);
+
+  var lineWidth = letterEl.getBoundingClientRect().width;
+
+  anime.timeline({ loop: false })
+   .add({
+      targets: lineEl,
+      scaleY: [0, 1],
+      opacity: [0.5, 1],
+      easing: 'easeOutExpo',
+      duration: 700
+    })
+    .add({
+      targets: lineEl,
+      translateX: [0, lineWidth + 10],
+      easing: 'easeOutExpo',
+      duration: 700,
+      delay: 100
+    })
+    .add({
+      targets: '.ml11 .letter',
+      opacity: [0, 1],
+      easing: 'easeOutExpo',
+      duration: 600,
+      offset: '-=775',
+      delay: function (el, i) { return 34 * (i + 1); }
+    })
+    .add({
+      targets: '.ml11',
+      opacity: 1,
+      duration: 900,
+      easing: 'linear'
+    })
+    .add({
+      targets: '.ml11 .letter, .ml11 .line',
+      opacity: 0,
+      duration: 500,
+      easing: 'easeInExpo',
+      delay: function (el, i) { return 20 * i; },
+      complete: function () {
+        var next = index + 1;
+        if (next >= phrases.length) {
+          overloadSignal();
+        } else {
+          runPhrase(next);
+        }
+      }
+    });
+}
+
+/* ---------------- overload -> crash -> reveal (runs once, at the very end) ---------------- */
+function overloadSignal() {
+  // the wave's bumps ramp up fast and erratically, screen starts to jitter —
+  // reads as the signal taking on more than it can hold
+  var jitterTimer = setInterval(function () {
+    canvas.style.transform = 'translate(' + (Math.random() * 8 - 4) + 'px,' + (Math.random() * 6 - 3) + 'px)';
+  }, 60);
+
+  anime({
+    targets: waveState,
+    amp: 70,
+    blue: 255,
+    duration: 1500,
+    easing: 'easeInExpo',
+    complete: function () {
+      clearInterval(jitterTimer);
+      canvas.style.transform = '';
+      triggerCrash();
+    }
+  });
+}
+
+function triggerCrash() {
+  var flash = document.getElementById('crashFlash');
+  var glitch = document.getElementById('glitchText');
+  var intro = document.getElementById('introStage');
+
+  anime.timeline({ easing: 'steps(1)' })
+    .add({ targets: flash, opacity: [0, 1], duration: 60 })
+    .add({ targets: glitch, opacity: [0, 1], duration: 40 })
+    .add({ targets: flash, opacity: 0.1, duration: 70 })
+    .add({ targets: flash, opacity: 1, duration: 70 })
+    .add({ targets: flash, opacity: 0.15, duration: 70 })
+    .add({ targets: glitch, opacity: 0, duration: 120 })
+    .add({ targets: flash, opacity: 1, duration: 90 })
+    .add({
+      targets: flash,
+      opacity: 0,
+      duration: 260,
+      easing: 'easeOutQuad',
+      complete: function () {
+        intro.style.display = 'none';
+        revealSite();
+      }
+    });
+}
+
+function revealSite() {
+  var site = document.getElementById('mainSite');
+  document.body.classList.add('site-active');
+  site.hidden = false;
+
+  // signal settles into a calm, steady ambient state behind the new page
+  anime({ targets: waveState, amp: 8, blue: 90, duration: 900, easing: 'easeOutQuad' });
+
+  anime.timeline({ easing: 'easeOutExpo' })
+    .add({ targets: site, opacity: [0, 1], duration: 450 })
+    .add({
+      targets: '.nav-mark, .menu a',
+      opacity: [0, 1],
+      translateY: [-8, 0],
+      duration: 450,
+      delay: function (el, i) { return i * 90; }
+    }, '-=250')
+    .add({
+      targets: '.hero-photo-wrap',
+      opacity: [0, 1],
+      scale: [0.85, 1],
+      duration: 650,
+      easing: 'easeOutBack'
+    }, '-=250')
+    .add({
+      targets: '.hero-copy .eyebrow, .hero-copy h1, .hero-copy .lead, .hero-copy .fillnote',
+      opacity: [0, 1],
+      translateY: [14, 0],
+      duration: 500,
+      delay: function (el, i) { return i * 110; }
+    }, '-=500');
+}
+
+runPhrase(0);
+</script>
+</body>
+</html>
