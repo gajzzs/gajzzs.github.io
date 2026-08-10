@@ -112,6 +112,34 @@
     pointer-events: none;
   }
 
+  #skipIntroBtn {
+    position: fixed;
+    top: 18px;
+    right: 18px;
+    z-index: 22;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(124,255,178,0.35);
+    border-radius: 999px;
+    padding: 8px 12px;
+    background: rgba(23,41,58,0.78);
+    color: #eaf3ec;
+    font-family: 'Courier New', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 0 0 1px rgba(124,255,178,0.06) inset;
+  }
+  #skipIntroBtn:hover,
+  #skipIntroBtn:focus-visible {
+    border-color: #7CFFB2;
+    color: #7CFFB2;
+    outline: none;
+  }
+
   /* ============ MAIN SITE (revealed after the crash) ============ */
   #mainSite {
     position: relative;
@@ -330,6 +358,7 @@
   </div>
 </div>
 <div id="crashFlash"></div>
+<button id="skipIntroBtn" type="button">Skip intro</button>
 <!-- <p id="glitchText">Signal lost — recalibrating</p> -->
 
 <!-- ============ MAIN SITE (hidden until the crash resolves) ============ -->
@@ -337,11 +366,11 @@
 <div id="mainSite" hidden>
   <header class="nav">
     <div class="nav-mark">adarsh<span>.</span></div>
-    <nav class="menu">
+    <!-- <nav class="menu">
       <a href="#about">About</a>
       <a href="#projects">Projects</a>
       <a href="#contact">Contact</a>
-    </nav>
+    </nav> -->
   </header>
 
   <section class="section hero-panel" id="about">
@@ -430,6 +459,21 @@
   });
 })();
 
+var introKey = 'introPlayed';
+var introPlayed = localStorage.getItem(introKey) === '1';
+var introSkipped = false;
+var skipIntroBtn = document.getElementById('skipIntroBtn');
+
+if (introPlayed) {
+  skipIntroBtn.style.display = 'inline-flex';
+}
+
+skipIntroBtn.addEventListener('click', function () {
+  introSkipped = true;
+  skipIntroBtn.style.display = 'none';
+  revealSite();
+});
+
 /* ---------------- background: perspective particle wave ---------------- */
 var canvas = document.querySelector('canvas'),
     ctx = canvas.getContext('2d'),
@@ -501,6 +545,9 @@ function setPhrase(text) {
 }
 
 function runPhrase(index) {
+  if (introSkipped) {
+    return;
+  }
   var text = phrases[index % phrases.length];
   setPhrase(text);
 
@@ -542,6 +589,9 @@ function runPhrase(index) {
       easing: 'easeInExpo',
       delay: function (el, i) { return 20 * i; },
       complete: function () {
+        if (introSkipped) {
+          return;
+        }
         var next = index + 1;
         if (next >= phrases.length) {
           overloadSignal();
@@ -575,6 +625,9 @@ function overloadSignal() {
 }
 
 function triggerCrash() {
+  if (introSkipped) {
+    return;
+  }
   var flash = document.getElementById('crashFlash');
   var glitch = document.getElementById('glitchText');
   var intro = document.getElementById('introStage');
@@ -601,8 +654,12 @@ function triggerCrash() {
 
 function revealSite() {
   var site = document.getElementById('mainSite');
+  var intro = document.getElementById('introStage');
   document.body.classList.add('site-active');
   site.hidden = false;
+  skipIntroBtn.style.display = 'none';
+  intro.style.display = 'none';
+  localStorage.setItem(introKey, '1');
 
   // signal settles into a calm, steady ambient state behind the new page
   anime({ targets: waveState, amp: 8, blue: 90, duration: 900, easing: 'easeOutQuad' });
