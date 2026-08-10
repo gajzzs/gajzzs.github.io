@@ -483,6 +483,29 @@ var canvas = document.querySelector('canvas'),
 
 var waveState = { amp: 10, blue: 80 };
 
+/* ---- cursor awareness: the signal glows and ripples a small bit where the mouse plays with it ---- */
+var mouse = { x: -9999, y: -9999, tx: -9999, ty: -9999, active: false };
+var MOUSE_RADIUS = 150;
+
+window.addEventListener('mousemove', function (e) {
+  mouse.tx = e.clientX;
+  mouse.ty = e.clientY;
+  mouse.active = true;
+});
+window.addEventListener('mouseleave', function () {
+  mouse.active = false;
+});
+window.addEventListener('touchmove', function (e) {
+  if (e.touches && e.touches[0]) {
+    mouse.tx = e.touches[0].clientX;
+    mouse.ty = e.touches[0].clientY;
+    mouse.active = true;
+  }
+}, { passive: true });
+window.addEventListener('touchend', function () {
+  mouse.active = false;
+});
+
 window.addEventListener('resize', function () {
   W = canvas.width = window.innerWidth;
   H = canvas.height = window.innerHeight;
@@ -495,10 +518,15 @@ for (var x = -400; x < 400; x += 5) {
 }
 
 function render(ts) {
+  // smooth-follow the cursor so the reaction feels alive, not snappy
+  mouse.x += (mouse.tx - mouse.x) * 0.12;
+  mouse.y += (mouse.ty - mouse.y) * 0.12;
+  var mouseStrength = mouse.active ? 1 : 0;
+
   var imageData = ctx.getImageData(0, 0, W, H),
       len = pixels.length,
       fov = 250,
-      pixel, scale, x2d, y2d, c;
+      pixel, scale, x2d, y2d, c, dx, dy, dist, influence;
 
   for (var i = 0; i < len; i++) {
     pixel = pixels[i];
@@ -506,16 +534,28 @@ function render(ts) {
     x2d = pixel.x * scale + W / 2;
     y2d = pixel.y * scale + H / 2;
 
+    influence = 0;
+    if (mouseStrength) {
+      dx = x2d - mouse.x;
+      dy = y2d - mouse.y;
+      dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < MOUSE_RADIUS) {
+        influence = (1 - dist / MOUSE_RADIUS) * mouseStrength;
+      }
+    }
+
     if (x2d >= 0 && x2d <= W && y2d >= 0 && y2d <= H) {
       c = (Math.round(y2d) * imageData.width + Math.round(x2d)) * 4;
-      imageData.data[c] = 0;
+      imageData.data[c] = Math.min(255, influence * 60);
       imageData.data[c + 1] = 255;
       imageData.data[c + 2] = waveState.blue;
       imageData.data[c + 3] = 255;
     }
 
     pixel.z -= 0.4;
-    pixel.y = H / 14 + Math.sin(i / len * 15 + (ts / 450)) * waveState.amp;
+    pixel.y = H / 14
+      + Math.sin(i / len * 15 + (ts / 450)) * waveState.amp
+      + Math.sin(ts / 180 + i) * influence * 14;
     if (pixel.z < -fov) pixel.z += 2 * fov;
   }
   ctx.putImageData(imageData, 0, 0);
